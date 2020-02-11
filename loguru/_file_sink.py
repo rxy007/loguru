@@ -185,8 +185,8 @@ class FileSink:
     def _limit_time_size(self):
         file_stat = os.stat(self._file_path)
         if hasattr(self._rotation_function, '_limit'):
-            file_time = time.strftime('%H:%M:%S', time.localtime(file_stat.st_mtime))
-            return self._rotation_function._limit.strftime('%H:%M:%S') > file_time
+            file_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(file_stat.st_mtime))
+            return self._rotation_function._limit.strftime('%Y-%m-%d %H:%M:%S') > file_time
         elif hasattr(self._rotation_function, 'keywords'):
             file_size = file_stat.st_size
             return self._rotation_function.keywords['size_limit'] < file_size
