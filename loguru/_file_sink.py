@@ -9,12 +9,13 @@ import shutil
 import string
 from functools import partial
 import time
-from multiprocessing import Lock
 from . import _string_parsers as string_parsers
 from ._ctime_functions import get_ctime, set_ctime
 from ._datetime import aware_now, datetime
-
-lock = Lock()
+try:
+    import fcntl
+except:
+    fcntl = None
 def generate_rename_path(root, ext):
     path_to_rename = root + ext
     creation_time = get_ctime(path_to_rename)
@@ -175,14 +176,16 @@ class FileSink:
         if self._rotation_function is not None and hasattr(self._rotation_function, '_limit') and self._rotation_function._limit is not None:
             _limit_time = self._rotation_function._limit.strftime('%Y-%m-%d %H:%M:%S')
         if self._rotation_function is not None and self._rotation_function(message, self._file):
-            lock.acquire()
+            if fcntl:
+                fcntl.flock(self._file.fileno(), fcntl.LOCK_EX)
             if self._limit_time_size(_limit_time):
                 self._terminate(teardown=True)
                 self._initialize_file(rename_existing=True)
                 set_ctime(self._file_path, datetime.now().timestamp())
             else:
                 self._file = open(self._file_path, **self._kwargs)
-            lock.release()
+            if fcntl:
+                fcntl.flock(self._file.fileno(), fcntl.LOCK_UN)
         self._file.write(message)
 
     def _limit_time_size(self, _limit_time=None):
