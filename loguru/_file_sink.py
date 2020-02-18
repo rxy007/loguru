@@ -177,9 +177,8 @@ class FileSink:
             _limit_time = self._rotation_function._limit.strftime('%Y-%m-%d %H:%M:%S')
         if self._rotation_function is not None and self._rotation_function(message, self._file):
             if fcntl:
-                _f = open('/tmp/loguru_lock_file')
-                fcntl.flock(_f.fileno(), fcntl.LOCK_EX)
-                _f.write('1')
+                _f = open('/tmp/loguru_lock_file', 'w')
+                fcntl.flock(_f, fcntl.LOCK_EX)
             if self._limit_time_size(_limit_time):
                 self._terminate(teardown=True)
                 self._initialize_file(rename_existing=True)
@@ -187,7 +186,7 @@ class FileSink:
             else:
                 self._file = open(self._file_path, **self._kwargs)
             if fcntl:
-                fcntl.flock(_f.fileno(), fcntl.LOCK_UN)
+                fcntl.flock(_f, fcntl.LOCK_UN)
                 _f.close()
         self._file.write(message)
 
