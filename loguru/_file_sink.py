@@ -8,14 +8,11 @@ import re
 import shutil
 import string
 from functools import partial
-import time
 from . import _string_parsers as string_parsers
 from ._ctime_functions import get_ctime, set_ctime
 from ._datetime import aware_now, datetime
-try:
-    import fcntl
-except:
-    fcntl = None
+
+
 def generate_rename_path(root, ext):
     path_to_rename = root + ext
     creation_time = get_ctime(path_to_rename)
@@ -172,35 +169,11 @@ class FileSink:
     def write(self, message):
         if self._file is None:
             self._initialize_file(rename_existing=False)
-        _limit_time = None
-        if self._rotation_function is not None and hasattr(self._rotation_function, '_limit') and self._rotation_function._limit is not None:
-            _limit_time = self._rotation_function._limit.strftime('%Y-%m-%d %H:%M:%S')
         if self._rotation_function is not None and self._rotation_function(message, self._file):
-            if fcntl:
-                _f = open('/tmp/loguru_lock_file', 'w')
-                fcntl.flock(_f, fcntl.LOCK_EX)
-            if self._limit_time_size(_limit_time):
-                self._terminate(teardown=True)
-                self._initialize_file(rename_existing=True)
-                set_ctime(self._file_path, datetime.now().timestamp())
-            else:
-                self._file = open(self._file_path, **self._kwargs)
-            if fcntl:
-                fcntl.flock(_f, fcntl.LOCK_UN)
-                _f.close()
+            self._terminate(teardown=True)
+            self._initialize_file(rename_existing=True)
+            set_ctime(self._file_path, datetime.now().timestamp())
         self._file.write(message)
-
-    def _limit_time_size(self, _limit_time=None):
-        file_stat = os.stat(self._file_path)
-        if hasattr(self._rotation_function, '_limit'):
-            file_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(file_stat.st_mtime))
-            if _limit_time is None:
-                _limit_time = self._rotation_function._limit.strftime('%Y-%m-%d %H:%M:%S')
-            return _limit_time > file_time
-        elif hasattr(self._rotation_function, 'keywords'):
-            file_size = file_stat.st_size
-            return self._rotation_function.keywords['size_limit'] < file_size
-        return True
 
     def _initialize_file(self, *, rename_existing):
         new_path = self._path.format_map({"time": FileDateFormatter()})
